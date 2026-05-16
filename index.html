@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Word Search</title>
+<style>
+  *, *::before, *::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+
+  :root {
+    --bg: #0f1117;
+    --surface: #1a1d27;
+    --surface2: #242836;
+    --border: #2e3348;
+    --accent: #6c63ff;
+    --accent-glow: rgba(108, 99, 255, 0.25);
+    --text: #e2e4ed;
+    --text-dim: #8a8fa8;
+    --green: #34d399;
+    --red: #f87171;
+    --yellow: #fbbf24;
+    --radius: 12px;
+  }
+
+  body {
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  header {
+    width: 100%;
+    max-width: 640px;
+    padding: 28px 20px 12px;
+    text-align: center;
+  }
+
+  header h1 {
+    font-size: 1.6rem;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+    background: linear-gradient(135deg, #6c63ff, #a78bfa, #6c63ff);
+    background-size: 200% 200%;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    animation: shimmer 4s ease-in-out infinite;
+  }
+
+  @keyframes shimmer {
+    0%, 100% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+  }
+
+  header p {
+    color: var(--text-dim);
+    font-size: 0.85rem;
+    margin-top: 6px;
+  }
+
+  .container {
+    width: 100%;
+    max-width: 640px;
+    padding: 12px 20px 40px;
+  }
+
+  /* ── Status Bar ── */
+  .status-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 14px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    margin-bottom: 16px;
+    font-size: 0.8rem;
+    color: var(--text-dim);
+  }
+
+  .status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--yellow);
+    flex-shrink: 0;
+    transition: background 0.3s;
+  }
+
+  .status-dot.loaded { background: var(--green); }
+  .status-dot.error  { background: var(--red); }
+
+  /* ── Search Area ── */
+  .search-area {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+
+  .search-area input {
+    flex: 1;
+    padding: 14px 16px;
+    font-size: 1rem;
+    font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+    background: var(--surface);
+    border: 2px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text);
+    outline: none;
+    transition: border-color 0.25s, box-shadow 0.25s;
+    caret-color: var(--accent);
+  }
+
+  .search-area input::placeholder {
+    color: var(--text-dim);
+    font-family: 'Segoe UI', system-ui, sans-serif;
+  }
+
+  .search-area input:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 4px var(--accent-glow);
+  }
+
+  .search-area button {
+    padding: 14px 22px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: var(--radius);
+    cursor: pointer;
+    transition: transform 0.15s, box-shadow 0.25s, opacity 0.25s;
+    white-space: nowrap;
+  }
+
+  .search-area button:hover {
+    box-shadow: 0 4px 20px var(--accent-glow);
+  }
+
+  .search-area button:active {
+    transform: scale(0.96);
+  }
+
+  .search-area button:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+
+  /* ── Pattern Display ── */
+  .pattern-display {
+    font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+    font-size: 0.75rem;
+    color: var(--text-dim);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 12px;
+    margin-bottom: 16px;
+    word-break: break-all;
+    display: none;
+  }
+
+  .pattern-display.visible { display: block; }
+
+  /* ── Results ── */
+  .results-header {
+    display: none;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+    padding: 0 2px;
+  }
+
+  .results-header.visible { display: flex; }
+
+  .results-header h2 {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+
+  .count-badge {
+    font-size: 0.78rem;
+    background: var(--surface2);
+    color: var(--accent);
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-weight: 600;
+  }
+
+  .results-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    max-height: 65vh;
+    overflow-y: auto;
+    scroll-behavior: smooth;
+    display: none;
+  }
+
+  .results-box.visible { display: block; }
+
+  .results-box::-webkit-scrollbar { width: 6px; }
+  .results-box::-webkit-scrollbar-track { background: transparent; }
+  .results-box::-webkit-scrollbar-thumb {
+    background: var(--border);
+    border-radius: 3px;
+  }
+
+  .result-line {
+    padding: 10px 16px;
+    font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+    font-size: 0.95rem;
+    border-bottom: 1px solid var(--border);
+    transition: background 0.15s;
+    cursor: default;
+    user-select: all;
+  }
+
+  .result-line:last-child { border-bottom: none; }
+
+  .result-line:hover {
+    background: var(--surface2);
+  }
+
+  .result-line .line-num {
+    display: inline-block;
+    width: 36px;
+    color: var(--text-dim);
+    font-size: 0.72rem;
+    text-align: right;
+    margin-right: 14px;
+    opacity: 0.5;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+
+  .no-results {
+    padding: 40px 20px;
+    text-align: center;
+    color: var(--text-dim);
+    font-size: 0.9rem;
+  }
+
+  .no-results .icon {
+    font-size: 2rem;
+    margin-bottom: 8px;
+  }
+
+  /* ── Error Toast ── */
+  .toast {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%) translateY(100px);
+    background: var(--red);
+    color: #fff;
+    padding: 12px 24px;
+    border-radius: 10px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    opacity: 0;
+    transition: transform 0.35s cubic-bezier(0.4,0,0.2,1), opacity 0.35s;
+    z-index: 100;
+    max-width: 90vw;
+    text-align: center;
+    pointer-events: none;
+  }
+
+  .toast.show {
+    transform: translateX(-50%) translateY(0);
+    opacity: 1;
+  }
+
+  /* ── Tips ── */
+  .tips {
+    margin-top: 20px;
+    padding: 14px 16px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    font-size: 0.78rem;
+    color: var(--text-dim);
+    line-height: 1.7;
+  }
+
+  .tips strong { color: var(--text); }
+  .tips code {
+    background: var(--surface2);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 0.76rem;
+    color: var(--accent);
+  }
+
+  /* ── Loading Spinner ── */
+  .spinner {
+    display: none;
+    width: 20px;
+    height: 20px;
+    border: 2px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    margin: 20px auto;
+  }
+
+  .spinner.visible { display: block; }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ── Responsive ── */
+  @media (max-width: 480px) {
+    header { padding: 20px 16px 8px; }
+    header h1 { font-size: 1.35rem; }
+    .container { padding: 10px 14px 30px; }
+    .search-area input { padding: 12px 14px; font-size: 16px; }
+    .search-area button { padding: 12px 18px; }
+    .result-line { font-size: 0.88rem; padding: 9px 12px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>⚡ Word Search</h1>
+  <p>Use <strong>*</strong> as a wildcard to find words</p>
+</header>
+
+<div class="container">
+
+  <!-- Status -->
+  <div class="status-bar">
+    <span class="status-dot" id="statusDot"></span>
+    <span id="statusText">Loading dictionary…</span>
+  </div>
+
+  <!-- Search -->
+  <div class="search-area">
+    <input
+      type="text"
+      id="queryInput"
+      placeholder='SEARCH HERE > e.g.  *tion, hel*, *ing'
+      autocomplete="off"
+      autocorrect="off"
+      autocapitalize="off"
+      spellcheck="false"
+    />
+    <button id="searchBtn" disabled>Search</button>
+  </div>
+
+  <!-- Pattern -->
+  <div class="pattern-display" id="patternDisplay"></div>
+
+  <!-- Results Header -->
+  <div class="results-header" id="resultsHeader">
+    <h2>Result</h2>
+    <span class="count-badge" id="countBadge">0</span>
+  </div>
+
+  <!-- Results -->
+  <div class="results-box" id="resultsBox"></div>
+
+  <!-- Spinner -->
+  <div class="spinner" id="spinner"></div>
+
+  <!-- Tips -->
+  <div class="tips">
+    <strong>💡 Tips:</strong><br>
+    • <code>*</code> matches any characters (like <code>.*?</code>)<br>
+    • <code>*tion</code> → words ending in "tion"<br>
+    • <code>hel*</code> → words starting with "hel"<br>
+    • <code>*s*</code> → words containing "s"<br>
+    • Leave <code>*</code> off for exact match
+  </div>
+
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+(function () {
+  /* ── Config ── */
+  const DICT_URL =
+    "https://raw.githubusercontent.com/dwyl/english-words/master/words_alpha.txt";
+
+  /* ── DOM refs ── */
+  const input       = document.getElementById("queryInput");
+  const btn         = document.getElementById("searchBtn");
+  const statusDot   = document.getElementById("statusDot");
+  const statusText  = document.getElementById("statusText");
+  const patternDiv  = document.getElementById("patternDisplay");
+  const resultsHdr  = document.getElementById("resultsHeader");
+  const countBadge  = document.getElementById("countBadge");
+  const resultsBox  = document.getElementById("resultsBox");
+  const spinner     = document.getElementById("spinner");
+  const toastEl     = document.getElementById("toast");
+
+  /* ── State ── */
+  let wordList = [];   // array of strings, one per line
+  let ready    = false;
+
+  /* ── Fetch dictionary ── */
+  async function loadDictionary() {
+    try {
+      const res = await fetch(DICT_URL);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const text = await res.text();
+      wordList = text.split(/\r?\n/).filter(Boolean);
+      ready = true;
+      statusDot.classList.add("loaded");
+      statusText.textContent = `${wordList.length.toLocaleString()} words loaded`;
+      btn.disabled = false;
+      input.focus();
+    } catch (err) {
+      statusDot.classList.add("error");
+      statusText.textContent = "Failed to load dictionary";
+      showToast(`Could not load dictionary: ${err.message}`);
+    }
+  }
+
+  /* ── Toast helper ── */
+  let toastTimer;
+  function showToast(msg) {
+    clearTimeout(toastTimer);
+    toastEl.textContent = msg;
+    toastEl.classList.add("show");
+    toastTimer = setTimeout(() => toastEl.classList.remove("show"), 3500);
+  }
+
+  /* ── Build regex from query ── */
+  function buildPattern(query) {
+    // Escape all regex special chars EXCEPT *, then replace * with .*?
+    const escaped = query.replace(
+      /[.+?^${}()|[$\$/g,
+      "\\$&"
+    ).replace(/\*/g, ".*?");
+    return new RegExp(`^(${escaped})$`);
+  }
+
+  /* ── Search ── */
+  function doSearch() {
+    const query = input.value.trim();
+    if (!query) {
+      showToast("You need to input a query!");
+      input.focus();
+      return;
+    }
+
+    let pattern;
+    try {
+      pattern = buildPattern(query);
+    } catch (e) {
+      showToast("Your pattern threw an error! Please try again.");
+      return;
+    }
+
+    // Show pattern
+    const patternStr = `^(${query.replace(/\*/g, ".*?")})$`;
+    patternDiv.textContent = `Pattern: ${patternStr}`;
+    patternDiv.classList.add("visible");
+
+    // Find matches
+    const matches = [];
+    for (const word of wordList) {
+      if (pattern.test(word)) {
+        matches.push(word);
+        if (matches.length >= 5000) break;   // safety cap
+      }
+    }
+
+    // Render
+    resultsHdr.classList.add("visible");
+    resultsBox.classList.add("visible");
+    resultsBox.innerHTML = "";
+
+    if (matches.length === 0) {
+      countBadge.textContent = "0";
+      resultsBox.innerHTML =
+        '<div class="no-results"><div class="icon">🔍</div>No results found.</div>';
+      return;
+    }
+
+    countBadge.textContent = matches.length >= 5000
+      ? "5000+"
+      : matches.length;
+
+    const frag = document.createDocumentFragment();
+    for (let i = 0; i < matches.length; i++) {
+      const div = document.createElement("div");
+      div.className = "result-line";
+      div.innerHTML = `<span class="line-num">${i + 1}</span>${escapeHtml(matches[i])}`;
+      frag.appendChild(div);
+    }
+    resultsBox.appendChild(frag);
+  }
+
+  function escapeHtml(str) {
+    return str.replace(/&/g, "&amp;")
+              .replace(/</g, "&lt;")
+              .replace(/>/g, "&gt;")
+              .replace(/"/g, "&quot;");
+  }
+
+  /* ── Events ── */
+  btn.addEventListener("click", doSearch);
+
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") doSearch();
+  });
+
+  /* ── Init ── */
+  loadDictionary();
+})();
+</script>
+
+</body>
+</html>
