@@ -394,7 +394,7 @@
 (function () {
   /* ── Config ── */
   const DICT_URL =
-    "https://raw.githubusercontent.com/dwyl/english-words/master/words_alpha.txt";
+    "https://raw.githubusercontent.com/EpsilonUsage/limited-foundation/refs/heads/main/dictionary.txt";
 
   /* ── DOM refs ── */
   const input       = document.getElementById("queryInput");
@@ -442,13 +442,9 @@
 
   /* ── Build regex from query ── */
   function buildPattern(query) {
-    // Escape all regex special chars EXCEPT *, then replace * with .*?
-    const escaped = query.replace(
-      /[.+?^${}()|[$\$/g,
-      "\\$&"
-    ).replace(/\*/g, ".*?");
-    return new RegExp(`^(${escaped})$`);
-  }
+  const patternInitial = query.replace(/\*/g, ".*?");
+  return new RegExp(`^(${patternInitial})$`);
+}
 
   /* ── Search ── */
   function doSearch() {
